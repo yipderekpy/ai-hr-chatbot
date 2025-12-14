@@ -1,254 +1,158 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Preface HR Assistant • n8n Chat (Apple Glass)</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Preface HR Assistant</title>
 
-    <!-- n8n Chat base styles (CDN) -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css"
-      rel="stylesheet"
-    />
+  <!-- n8n chat widget styles -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" />
 
-    <!-- Apple-style liquid glass full-page layout + theme overrides -->
-    <style>
-      /* Reset / layout */
-      html,
-      body,
-      #n8n-chat {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
+  <style>
+    :root {
+      --app-bg-1: rgba(255, 255, 255, 0.75);
+      --app-bg-2: rgba(255, 255, 255, 0.45);
+      --app-border: rgba(0, 0, 0, 0.10);
+      --app-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+      --app-text: rgba(0, 0, 0, 0.88);
+      --app-subtext: rgba(0, 0, 0, 0.55);
+
+      --header-h: 64px;
+      --radius: 18px;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--app-text);
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(0,0,0,0.06), transparent 60%),
+        radial-gradient(1000px 700px at 80% 30%, rgba(0,0,0,0.05), transparent 55%),
+        linear-gradient(180deg, #fafafa, #f5f5f5);
+      overflow: hidden;
+    }
+
+    #shell {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+
+      background: linear-gradient(180deg, var(--app-bg-1), var(--app-bg-2));
+      border-bottom: 1px solid var(--app-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: 0.2px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--app-border);
+      background: rgba(255,255,255,0.55);
+      color: var(--app-text);
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    #chat-host {
+      height: calc(100vh - var(--header-h));
+      padding: 14px;
+      box-sizing: border-box;
+    }
+
+    #chat-frame {
+      height: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--app-border);
+      background: rgba(255,255,255,0.25);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--app-shadow);
+      overflow: hidden;
+    }
+
+    #n8n-chat {
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="shell">
+    <header>
+      <div class="title">HR Assistant</div>
+      <button id="newChatBtn" class="btn" type="button">Start New Chat</button>
+    </header>
+
+    <main id="chat-host">
+      <div id="chat-frame">
+        <div id="n8n-chat"></div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { createChat } from "https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js";
+
+    const WEBHOOK_URL = "https://derekpyyip.app.n8n.cloud/webhook/e2d69b7e-b0c1-46b5-9d6c-c41dc33bc2ad/chat";
+
+    let chatApp = null;
+
+    function mountChat() {
+      const targetEl = document.getElementById("n8n-chat");
+
+      if (chatApp && typeof chatApp.unmount === "function") {
+        chatApp.unmount();
       }
+      targetEl.innerHTML = "";
 
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text',
-          system-ui, 'Helvetica Neue', Arial, sans-serif;
-        /* Subtle Apple-style gradient background */
-        background: radial-gradient(circle at top left, #1f2937 0, #020617 60%);
-        color: #e5e7eb;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+      const sessionSeed = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 
-      /* Center the chat widget and apply liquid glass look */
-      #n8n-chat {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        box-sizing: border-box;
-      }
-
-      /* Outer glass panel wrapping the actual chat widget */
-      #n8n-chat .n8n-chat {
-        width: min(960px, 100%);
-        height: min(720px, 100%);
-
-        background: radial-gradient(circle at top left,
-            rgba(255, 255, 255, 0.32) 0,
-            rgba(148, 163, 184, 0.24) 35%,
-            rgba(15, 23, 42, 0.72) 100%);
-        border-radius: 28px;
-        border: 1px solid rgba(255, 255, 255, 0.38);
-        box-shadow:
-          0 24px 60px rgba(0, 0, 0, 0.6),
-          0 0 0 1px rgba(15, 23, 42, 0.8);
-        backdrop-filter: blur(26px) saturate(140%);
-        -webkit-backdrop-filter: blur(26px) saturate(140%);
-        overflow: hidden;
-      }
-
-      /* Slight padding inside so the chat doesn’t touch edges */
-      #n8n-chat .n8n-chat__container,
-      #n8n-chat .n8n-chat__wrapper {
-        border-radius: 24px;
-        overflow: hidden;
-      }
-
-      /* Header area tweaks if present */
-      #n8n-chat .n8n-chat__header {
-        background: linear-gradient(
-          120deg,
-          rgba(15, 23, 42, 0.96),
-          rgba(30, 64, 175, 0.9)
-        );
-        backdrop-filter: blur(30px);
-        -webkit-backdrop-filter: blur(30px);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.24);
-      }
-
-      #n8n-chat .n8n-chat__title {
-        font-weight: 600;
-        letter-spacing: 0.01em;
-      }
-
-      #n8n-chat .n8n-chat__subtitle {
-        opacity: 0.9;
-      }
-
-      /* Messages area: glassy scroll area */
-      #n8n-chat .n8n-chat__messages-container {
-        background: linear-gradient(
-          to bottom,
-          rgba(15, 23, 42, 0.82),
-          rgba(15, 23, 42, 0.92)
-        );
-      }
-
-      /* Input bar glass treatment */
-      #n8n-chat .n8n-chat__input-container {
-        background: linear-gradient(
-          135deg,
-          rgba(15, 23, 42, 0.9),
-          rgba(15, 23, 42, 0.96)
-        );
-        border-top: 1px solid rgba(148, 163, 184, 0.5);
-        backdrop-filter: blur(22px);
-        -webkit-backdrop-filter: blur(22px);
-      }
-
-      #n8n-chat textarea {
-        background: rgba(15, 23, 42, 0.6);
-        border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.8);
-      }
-
-      /* === All @n8n/chat CSS variables for color & shape tuning === */
-      :root {
-        /* Brand / primary */
-        --chat--color-primary: #e5e7eb; /* header main text / primary buttons */
-        --chat--color-primary-shade-50: #cbd5f5;
-        --chat--color-primary-shade-100: #a5b4fc;
-
-        /* Secondary / accent (user bubble) */
-        --chat--color-secondary: rgba(129, 140, 248, 0.9);
-        --chat--color-secondary-shade-50: rgba(79, 70, 229, 0.95);
-
-        /* Base neutrals */
-        --chat--color-white: rgba(255, 255, 255, 0.96);
-        --chat--color-light: rgba(248, 250, 252, 0.7);
-        --chat--color-light-shade-50: rgba(226, 232, 240, 0.72);
-        --chat--color-light-shade-100: rgba(148, 163, 184, 0.8);
-        --chat--color-medium: rgba(148, 163, 184, 0.9);
-        --chat--color-dark: rgba(15, 23, 42, 0.96);
-        --chat--color-disabled: rgba(148, 163, 184, 0.7);
-        --chat--color-typing: rgba(148, 163, 184, 0.9);
-
-        /* Shape & motion */
-        --chat--spacing: 1rem;
-        --chat--border-radius: 20px;
-        --chat--transition-duration: 0.22s;
-
-        /* Window size (for window mode; kept for completeness) */
-        --chat--window--width: 400px;
-        --chat--window--height: 600px;
-
-        /* Textarea height */
-        --chat--textarea--height: 64px;
-
-        /* Bubbles */
-        --chat--message--bot--background: rgba(15, 23, 42, 0.65);
-        --chat--message--bot--color: rgba(226, 232, 240, 0.96);
-
-        --chat--message--user--background: rgba(129, 140, 248, 0.95);
-        --chat--message--user--color: #f9fafb;
-
-        --chat--message--pre--background: rgba(15, 23, 42, 0.72);
-
-        /* Floating toggle button (for window mode) */
-        --chat--toggle--background: rgba(129, 140, 248, 0.98);
-        --chat--toggle--hover--background: rgba(79, 70, 229, 0.98);
-        --chat--toggle--active--background: rgba(55, 48, 163, 0.98);
-        --chat--toggle--color: #f9fafb;
-        --chat--toggle--size: 56px;
-      }
-
-      /* Small viewport tweaks */
-      @media (max-width: 640px) {
-        #n8n-chat {
-          padding: 12px;
-        }
-
-        #n8n-chat .n8n-chat {
-          width: 100%;
-          height: 100%;
-          border-radius: 20px;
-        }
-      }
-    </style>
-  </head>
-
-  <body>
-    <!-- Fullscreen target container for n8n chat -->
-    <div
-      id="n8n-chat"
-      class="n8n-chat-fullscreen-container"
-      aria-label="Preface HR Assistant chat"
-    ></div>
-
-    <!-- n8n Chat widget (CDN, ES module) -->
-    <script type="module">
-      import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
-
-      window.addEventListener('DOMContentLoaded', () => {
-        createChat({
-          /* =========================================
-           *  Connection to your n8n HR Agent
-           * ======================================= */
-
-          // TODO: Replace with your real Chat Trigger webhook URL
-          webhookUrl: 'https://derekpyyip.app.n8n.cloud/webhook/e2d69b7e-b0c1-46b5-9d6c-c41dc33bc2ad/chat',
-
-          webhookConfig: {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Chat-Source': 'preface-hr-assistant',
-            },
-          },
-
-          // Mount point for the widget
-          target: '#n8n-chat',
-
-          // Full-page chat
-          mode: 'fullscreen', // 'window' | 'fullscreen'
-
-          // Keys used in the n8n workflow
-          chatInputKey: 'chatInput',
-          chatSessionKey: 'sessionId',
-
-          // Extra metadata sent with every request (available in Chat Trigger input)
-          metadata: {
-            assistantId: 'preface-hr-assistant',
-            department: 'HR',
-            app: 'Preface Employee Portal',
-          },
-
-          // Show welcome screen before first message
-          showWelcomeScreen: true,
-
-          // Language + text
-          defaultLanguage: 'en',
-          initialMessages: [
-            "Hi! I'm the Preface HR Assistant \ud83e\udd16",
-            'You can ask me about leave, benefits, working hours, and any other HR policy.',
-          ],
-          i18n: {
-            en: {
-              title: 'Preface HR Assistant',
-              subtitle: 'Ask me anything about HR policies and benefits.',
-              footer:
-                'Internal use only • For complex or sensitive topics, please contact HR directly.',
-              getStarted: 'Start a new HR question',
-              inputPlaceholder: 'Type your HR question…',
-            },
-          },
-        });
+      chatApp = createChat({
+        webhookUrl: WEBHOOK_URL,
+        target: targetEl,
+        mode: "fullscreen",
+        showWelcomeScreen: false,
+        loadPreviousSession: false,
+        enableStreaming: true,
+        allowFileUploads: false,
+        chatInputKey: "chatInput",
+        chatSessionKey: "sessionId",
+        metadata: {
+          app: "preface-hr-assistant",
+          anonymized: true,
+          sessionSeed,
+        },
+        initialMessages: [],
       });
-    </script>
-  </body>
+    }
+
+    document.getElementById("newChatBtn").addEventListener("click", mountChat);
+    mountChat();
+  </script>
+</body>
 </html>
